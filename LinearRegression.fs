@@ -1,8 +1,7 @@
 ﻿module LinearRegression
 
 open System.IO
-open MathNet.Numerics.LinearAlgebra.Double
-open MathNet.Numerics.LinearAlgebra.Generic
+open MathNet.Numerics.LinearAlgebra
 open MathNet.Numerics.Statistics
 
 let h (θ: Vector<float>) x = 
@@ -35,7 +34,7 @@ let innerGradientDescent iterationFunction α maxIterations (X, y) =
     let iteration θ =
         θ - (α / m) * X.Transpose() * (X * θ - y)
     
-    DenseVector.create (Matrix.columnCount X) 0. :> Vector<float> |> iterationFunction iteration maxIterations
+    DenseVector.create (Matrix.columnCount X) 0. |> iterationFunction iteration maxIterations
 
 let gradientDescent α = innerGradientDescent Iteration.iterateUntilConvergence α
 let gradientDescentWithIntermediateResults α = innerGradientDescent Iteration.iterateUntilConvergenceWithIntermediateResults α
@@ -55,13 +54,13 @@ let plotGradientDescentIterations α maxIterations (X, y) =
 let featureNormalize (X: Matrix<float>) =
     
     let μ = 
-        X.ColumnEnumerator() 
-        |> Seq.map (fun (j, col) -> col.Mean()) 
+        X.EnumerateColumns()
+        |> Seq.map (fun col -> col.Mean()) 
         |> DenseVector.ofSeq
     
     let σ = 
-        X.ColumnEnumerator() 
-        |> Seq.map (fun (j, col) -> col.StandardDeviation()) 
+        X.EnumerateColumns() 
+        |> Seq.map (fun col -> col.StandardDeviation()) 
         |> DenseVector.ofSeq    
     
     let alternative1() =
@@ -69,8 +68,8 @@ let featureNormalize (X: Matrix<float>) =
         (X, μ, σ)
 
     let alternative2() =
-        let μExpanded = DenseMatrix.initRow X.RowCount X.ColumnCount (fun _ -> μ)
-        let σDiag = DenseMatrix.diag σ
+        let μExpanded = DenseMatrix.initRows X.RowCount (fun _ -> μ)
+        let σDiag = DenseMatrix.ofDiag σ
         let X = (X - μExpanded) * σDiag.Inverse()
         (X, μ, σ)
 
@@ -88,7 +87,7 @@ let loadData file =
     let matrix =
         File.ReadLines(__SOURCE_DIRECTORY__ + "/data/" + file) 
         |> Seq.map (fun line -> line.Split(',') |> Array.map float) 
-        |> DenseMatrix.ofSeq
+        |> DenseMatrix.ofRowSeq
     let m = matrix.RowCount
     let n = matrix.ColumnCount
     (matrix.[0..,..n-2], matrix.Column(n-1))
